@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Q&amp;A Chatbot</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--text:#1d2433;--muted:#6b7385;--accent:#3776ab;--user:#3776ab;--userText:#fff;--bot:#eef2f9;--border:#dde3ef}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b2030;--text:#e6e9f2;--muted:#9097aa;--accent:#5b9bd5;--user:#3a6fa5;--userText:#fff;--bot:#262c40;--border:#2e3550}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;justify-content:center}
+.app{width:100%;max-width:760px;height:100%;display:flex;flex-direction:column;background:var(--card);border-left:1px solid var(--border);border-right:1px solid var(--border)}
+header{padding:16px 20px;border-bottom:1px solid var(--border)}
+header h1{margin:0;font-size:1.2rem;color:var(--accent)}
+header p{margin:4px 0 0;font-size:.85rem;color:var(--muted)}
+#chat{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:85%;padding:10px 14px;border-radius:14px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;font-size:.95rem}
+.user{align-self:flex-end;background:var(--user);color:var(--userText);border-bottom-right-radius:4px}
+.bot{align-self:flex-start;background:var(--bot);border-bottom-left-radius:4px}
+.bot .topic{display:block;font-weight:600;color:var(--accent);margin-bottom:4px}
+.bot code,.bot pre{font-family:Consolas,Menlo,monospace}
+pre.code{margin:6px 0 0;padding:10px;background:rgba(0,0,0,.08);border-radius:8px;overflow-x:auto;font-size:.85rem;white-space:pre}
+.chips{padding:0 20px 8px;display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:999px;padding:5px 12px;font-size:.8rem;cursor:pointer}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+form{display:flex;gap:8px;padding:12px 20px;border-top:1px solid var(--border)}
+input{flex:1;padding:11px 14px;border:1px solid var(--border);border-radius:999px;background:var(--bg);color:var(--text);font-size:1rem;outline:none}
+input:focus{border-color:var(--accent)}
+button.send{padding:0 20px;border:0;border-radius:999px;background:var(--accent);color:#fff;font-size:1rem;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🐍 Python Q&amp;A Chatbot</h1>
+    <p>Ask a Python question in plain English. Type <b>topics</b> to see what I know.</p>
+  </header>
+  <div id="chat"></div>
+  <div class="chips" id="chips"></div>
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="e.g. What is a list?" autofocus>
+    <button class="send" type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+const KNOWLEDGE_BASE = [
+ {
+  "topic": "What is Python?",
+  "keywords": "introduction overview language interpreted high-level created guido",
+  "answer": "Python is a high-level, interpreted, dynamically typed, general-purpose programming language known for its readable syntax. It supports procedural, object-oriented and functional styles."
+ },
+ {
+  "topic": "Variables and data types",
+  "keywords": "variable variables data types int float str bool type datatype",
+  "answer": "Variables are created by assignment (x = 5); no declaration is needed.\nCommon built-in types: int, float, str, bool, list, tuple, set, dict, NoneType.\nUse type(x) to check a type."
+ },
+ {
+  "topic": "Lists",
+  "keywords": "list lists append remove pop insert sort slicing mutable array",
+  "answer": "A list is an ordered, mutable collection: nums = [1, 2, 3].\nMethods: append(x), insert(i, x), remove(x), pop(), sort(), reverse().\nSlicing: nums[1:3]. Lists can hold mixed types."
+ },
+ {
+  "topic": "Tuples",
+  "keywords": "tuple tuples immutable unpacking",
+  "answer": "A tuple is an ordered, immutable collection: t = (1, 2, 3).\nOnce created it cannot be changed. Useful for fixed data and as dict keys. Unpacking: a, b, c = t."
+ },
+ {
+  "topic": "Dictionaries",
+  "keywords": "dictionary dictionaries dict key value pairs hash map get items keys values",
+  "answer": "A dictionary stores key-value pairs: d = {'name': 'Asha', 'age': 20}.\nAccess: d['name'] or d.get('name'). Methods: keys(), values(), items(), update(), pop(). Keys must be hashable (immutable)."
+ },
+ {
+  "topic": "Sets",
+  "keywords": "set sets unique union intersection difference duplicates",
+  "answer": "A set is an unordered collection of unique elements: s = {1, 2, 3}.\nSupports union (|), intersection (&), difference (-). set(list_) removes duplicates."
+ },
+ {
+  "topic": "Difference between list and tuple",
+  "keywords": "difference between list tuple mutable immutable compare vs",
+  "answer": "Lists are mutable (can be changed) and use []; tuples are immutable and use (). Tuples are slightly faster and can be used as dictionary keys; lists cannot."
+ },
+ {
+  "topic": "Functions",
+  "keywords": "function functions def define return parameters arguments call",
+  "answer": "Define a function with def:\n\n    def add(a, b=0):\n        return a + b\n\nSupports default arguments, keyword arguments, *args and **kwargs."
+ },
+ {
+  "topic": "Lambda functions",
+  "keywords": "lambda anonymous function inline",
+  "answer": "A lambda is a small anonymous function: square = lambda x: x * x.\nOften used with map(), filter() and sorted(key=...)."
+ },
+ {
+  "topic": "*args and **kwargs",
+  "keywords": "args kwargs variable arguments positional keyword star",
+  "answer": "*args collects extra positional arguments into a tuple; **kwargs collects extra keyword arguments into a dict:\n\n    def f(*args, **kwargs): print(args, kwargs)"
+ },
+ {
+  "topic": "Loops",
+  "keywords": "loop loops for while iterate iteration range break continue",
+  "answer": "for loop: for i in range(5): print(i)\nwhile loop: while cond: ...\nbreak exits the loop; continue skips to the next iteration."
+ },
+ {
+  "topic": "Conditionals",
+  "keywords": "if else elif condition conditional statement decision",
+  "answer": "Use if / elif / else:\n\n    if x > 0: print('positive')\n    elif x == 0: print('zero')\n    else: print('negative')"
+ },
+ {
+  "topic": "List comprehension",
+  "keywords": "list comprehension comprehensions shortcut generate",
+  "answer": "A concise way to build lists:\n\n    squares = [x*x for x in range(10) if x % 2 == 0]\n\nDict and set comprehensions work the same way with {}."
+ },
+ {
+  "topic": "Strings",
+  "keywords": "string strings str upper lower split join replace format fstring f-string strip",
+  "answer": "Strings are immutable sequences of characters.\nMethods: upper(), lower(), strip(), split(), join(), replace(), find().\nf-strings: f'Hello {name}'."
+ },
+ {
+  "topic": "Classes and objects (OOP)",
+  "keywords": "class classes object objects oop init self constructor method attribute",
+  "answer": "A class is a blueprint for objects:\n\n    class Dog:\n        def __init__(self, name):\n            self.name = name\n        def bark(self):\n            return self.name + ' says woof'\n\nd = Dog('Rex') creates an object. __init__ is the constructor."
+ },
+ {
+  "topic": "Inheritance",
+  "keywords": "inheritance inherit parent child subclass super base derived",
+  "answer": "A class can inherit from another: class Puppy(Dog): ...\nUse super().__init__(...) to call the parent constructor. Python supports multiple inheritance."
+ },
+ {
+  "topic": "Exception handling",
+  "keywords": "exception exceptions error errors try except finally raise handling",
+  "answer": "Handle errors with try/except:\n\n    try:\n        x = 1 / 0\n    except ZeroDivisionError:\n        print('Cannot divide by zero')\n    finally:\n        print('always runs')\n\nUse raise to throw your own exception."
+ },
+ {
+  "topic": "File handling",
+  "keywords": "file files open read write append close with handling text",
+  "answer": "Use a with block so the file closes automatically:\n\n    with open('data.txt', 'r') as f:\n        content = f.read()\n\nModes: 'r' read, 'w' write, 'a' append, 'b' binary."
+ },
+ {
+  "topic": "Modules and imports",
+  "keywords": "module modules import package packages library libraries pip install",
+  "answer": "A module is a .py file you can reuse: import math; math.sqrt(16).\nAlso: from math import pi. Install third-party packages with pip install <name>."
+ },
+ {
+  "topic": "Decorators",
+  "keywords": "decorator decorators wrapper @",
+  "answer": "A decorator wraps a function to add behaviour:\n\n    def log(func):\n        def wrapper(*a, **k):\n            print('calling', func.__name__)\n            return func(*a, **k)\n        return wrapper\n\n    @log\n    def hello(): print('hi')"
+ },
+ {
+  "topic": "Generators",
+  "keywords": "generator generators yield iterator lazy",
+  "answer": "A generator produces values lazily using yield:\n\n    def count(n):\n        for i in range(n):\n            yield i\n\nThey save memory because values are created one at a time."
+ },
+ {
+  "topic": "Difference between == and is",
+  "keywords": "difference == is equality identity operator compare",
+  "answer": "== checks whether two values are equal; 'is' checks whether two names refer to the same object in memory. Use 'is' mainly for None: if x is None."
+ },
+ {
+  "topic": "Shallow vs deep copy",
+  "keywords": "copy deepcopy shallow deep clone",
+  "answer": "A shallow copy (list.copy() or copy.copy) copies the outer object but shares nested objects. copy.deepcopy() copies everything recursively."
+ },
+ {
+  "topic": "Python's memory management / garbage collection",
+  "keywords": "memory management garbage collection gc reference counting heap",
+  "answer": "Python uses reference counting plus a cyclic garbage collector to free unused objects automatically. Memory lives in a private heap managed by the interpreter."
+ },
+ {
+  "topic": "The GIL",
+  "keywords": "gil global interpreter lock threading multithreading concurrency",
+  "answer": "The Global Interpreter Lock (GIL) lets only one thread execute Python bytecode at a time in CPython. Use multiprocessing for CPU-bound parallelism; threads still help with I/O-bound work."
+ },
+ {
+  "topic": "Virtual environments",
+  "keywords": "virtual environment venv virtualenv isolate dependencies",
+  "answer": "A virtual environment isolates project dependencies:\n\n    python -m venv venv\n    source venv/bin/activate   (Windows: venv\\Scripts\\activate)\n    pip install requests"
+ },
+ {
+  "topic": "Mutable vs immutable types",
+  "keywords": "mutable immutable types change modify",
+  "answer": "Mutable objects can be changed after creation (list, dict, set). Immutable objects cannot (int, float, str, tuple, frozenset, bool)."
+ }
+];
+const STOP = new Set("a an the is are was were be to of in on for and or how do does can i you me my it with tell explain about please give show us use using used this that when why which there any some python what whats define mean meaning".split(" "));
+const MIN_SCORE = 0.15;
+
+function stem(w){
+  if (w.length <= 3) return w;
+  if (w.endsWith("ies")) return w.slice(0,-3)+"y";
+  if (/(sses|ches|shes|xes)$/.test(w)) return w.slice(0,-2);
+  if (w.endsWith("ing") && w.length > 5) return w.slice(0,-3);
+  if (w.endsWith("s") && !w.endsWith("ss")) return w.slice(0,-1);
+  return w;
+}
+function tokenize(t){
+  return (t.toLowerCase().match(/[a-z0-9_*=@\-]+/g) || []).filter(w=>!STOP.has(w)).map(stem);
+}
+
+const docs = KNOWLEDGE_BASE.map(e => tokenize(e.keywords+" "+e.topic));
+const topicTerms = KNOWLEDGE_BASE.map(e => new Set(tokenize(e.topic)));
+const df = {};
+docs.forEach(d => new Set(d).forEach(t => df[t] = (df[t]||0)+1));
+const idf = {};
+Object.keys(df).forEach(t => idf[t] = Math.log((docs.length+1)/(df[t]+1))+1);
+
+function score(q, d){
+  if (!q.length) return 0;
+  const ds = new Set(d), qs = [...new Set(q)];
+  let matched = 0, total = 0;
+  qs.forEach(t => { total += idf[t] ?? 1.5; if (ds.has(t)) matched += idf[t] ?? 0; });
+  return total ? matched/total : 0;
+}
+
+function answer(question){
+  let q = tokenize(question);
+  if (!q.length && /python/i.test(question)) q = ["introduction"];
+  const qs = new Set(q);
+  const ranked = docs.map((d,i) => {
+    const t = topicTerms[i];
+    const cover = t.size ? [...t].filter(x=>qs.has(x)).length / t.size : 0;
+    return {s: Math.round(score(q,d)*1e6)/1e6, cover, len: -d.length, i};
+  }).sort((a,b)=> b.s-a.s || b.cover-a.cover || b.len-a.len);
+  if (ranked[0].s < MIN_SCORE) return null;
+  return KNOWLEDGE_BASE[ranked[0].i];
+}
+
+// ---------- UI ----------
+const chat = document.getElementById("chat");
+function add(cls, html){
+  const d = document.createElement("div");
+  d.className = "msg "+cls; d.innerHTML = html;
+  chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
+}
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function formatAnswer(text){
+  // lines indented by 4 spaces become code blocks
+  const out = []; let code = [];
+  const flush = () => { if (code.length){ out.push('<pre class="code">'+esc(code.join("\n"))+'</pre>'); code = []; } };
+  text.split("\n").forEach(l => {
+    if (l.startsWith("    ")) code.push(l.slice(4));
+    else if (l.trim()==="" && code.length) code.push("");
+    else { flush(); out.push(esc(l)); }
+  });
+  flush();
+  return out.join("\n").replace(/<\/pre>\n/g,"</pre>");
+}
+
+function reply(q){
+  const lower = q.trim().toLowerCase();
+  if (["hi","hello","hey"].includes(lower)) return add("bot","Hello! Ask me a Python question, e.g. <i>What is a list?</i>");
+  if (["topics","help"].includes(lower))
+    return add("bot","I can answer about:\n• "+KNOWLEDGE_BASE.map(e=>esc(e.topic)).join("\n• "));
+  const hit = answer(q);
+  if (hit) add("bot",'<span class="topic">'+esc(hit.topic)+'</span>'+formatAnswer(hit.answer));
+  else add("bot","Sorry, I don't have an answer for that yet. Type <b>topics</b> to see what I know.");
+}
+
+function ask(q){
+  if (!q.trim()) return;
+  add("user", esc(q));
+  reply(q);
+}
+document.getElementById("form").addEventListener("submit", e => {
+  e.preventDefault();
+  const i = document.getElementById("input");
+  ask(i.value); i.value = "";
+});
+["What is a list?","How do I handle errors?","Explain decorators","Difference between list and tuple","topics"].forEach(t => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.type = "button"; b.textContent = t;
+  b.onclick = () => ask(t);
+  document.getElementById("chips").appendChild(b);
+});
+add("bot","Hi! I'm your Python helper. Ask me anything about Python, or tap a suggestion below.");
+</script>
+</body>
+</html>
